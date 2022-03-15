@@ -52,25 +52,42 @@ type ApplyMsg struct {
 //
 // A Go object implementing a single Raft peer.
 //
+type ServerIndex int
+type NextLogIndex int
+type HighestServerLogIndex int
 type Raft struct {
-	mu        sync.Mutex          // Lock to protect shared access to this peer's state
-	peers     []*labrpc.ClientEnd // RPC end points of all peers
-	persister *Persister          // Object to hold this peer's persisted state
-	me        int                 // this peer's index into peers[]
-	dead      int32               // set by Kill()
+	mu              sync.Mutex          // Lock to protect shared access to this peer's state
+	peers           []*labrpc.ClientEnd // RPC end points of all peers
+	persister       *Persister          // Object to hold this peer's persisted state
+	me              int                 // this peer's index into peers[]
+	dead            int32               // set by Kill()
+	isLeader        bool
+	isCandidate     bool
+	isFollower      bool
+	currentTerm     int //任期
+	currentLogIndex int //日志编号
+	lastTerm        int //上一个任期
+	lastLogIndex    int //上一个任务最后一个LogIndex
 
+	lastApplied int
+	commitIndex int //提交序号
+	nextIndex   map[ServerIndex]NextLogIndex
+	matchIndex  map[ServerIndex]HighestServerLogIndex
+
+	LogEntries []interface{} //日志集合
+	VotedFor   int           //目前获得投票的候选人
 	// Your data here (2A, 2B, 2C).
 	// Look at the paper's Figure 2 for a description of what
 	// state a Raft server must maintain.
+	//todo 如果是leader的话，是不是要记录每一个follower的lastItem 和LastIndex呢
 
 }
 
 // return currentTerm and whether this server
 // believes it is the leader.
 func (rf *Raft) GetState() (int, bool) {
-
-	var term int
-	var isleader bool
+	isleader := rf.isLeader
+	term := rf.term
 	// Your code here (2A).
 	return term, isleader
 }
@@ -138,6 +155,10 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 // field names must start with capital letters!
 //
 type RequestVoteArgs struct {
+	Term         int
+	CandidateId  int
+	LastLogIndex int
+	LastLogTerm  int
 	// Your data here (2A, 2B).
 }
 
@@ -146,7 +167,22 @@ type RequestVoteArgs struct {
 // field names must start with capital letters!
 //
 type RequestVoteReply struct {
+	Term        int
+	VoteGranted bool
 	// Your data here (2A).
+}
+
+type AppendEntriesArgs struct {
+	Term              int
+	LeaderId          int
+	PrevLogIndex      int //当前最新的日志索引？？
+	PrevLogTerm       int
+	Entries           interface{} //第一步先给一个空接口
+	LeaderCommitIndex int         //leader提交的index
+}
+type AppendEntriesReply struct {
+	Term    int  //
+	Success bool //返回真的只有一种情况就是,follower包含前一个任期和前一个logindex
 }
 
 //
